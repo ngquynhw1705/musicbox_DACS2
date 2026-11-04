@@ -1,0 +1,33 @@
+services:
+  db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE:-musicbox}
+      MARIADB_USER: ${DB_USERNAME:-musicbox}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-musicbox_local}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-musicbox_root_local}
+    volumes:
+      - musicbox_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  app:
+    build: .
+    ports:
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8080}:8080"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PREVIEW: ${APP_PREVIEW:-1}
+      DB_HOST: db
+      DB_DATABASE: ${DB_DATABASE:-musicbox}
+      DB_USERNAME: ${DB_USERNAME:-musicbox}
+      DB_PASSWORD: ${DB_PASSWORD:-musicbox_local}
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  musicbox_data:

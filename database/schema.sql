@@ -1,0 +1,111 @@
+CREATE TABLE IF NOT EXISTS users (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ name VARCHAR(100) NOT NULL,
+ email VARCHAR(190) NOT NULL UNIQUE,
+ phone VARCHAR(20) NOT NULL,
+ password_hash VARCHAR(255) NOT NULL,
+ role ENUM('admin','staff','customer') NOT NULL DEFAULT 'customer',
+ active BOOLEAN NOT NULL DEFAULT TRUE,
+ points INT UNSIGNED NOT NULL DEFAULT 0,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS rooms (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ name VARCHAR(100) NOT NULL,
+ description TEXT NOT NULL,
+ capacity INT UNSIGNED NOT NULL,
+ hourly_rate INT UNSIGNED NOT NULL,
+ image_url VARCHAR(500) NOT NULL DEFAULT '',
+ theme VARCHAR(20) NOT NULL DEFAULT 'violet',
+ opens_at TIME NOT NULL DEFAULT '09:00:00',
+ closes_at TIME NOT NULL DEFAULT '23:00:00',
+ status ENUM('available','maintenance','inactive') NOT NULL DEFAULT 'available'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS maintenance (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ room_id BIGINT UNSIGNED NOT NULL,
+ starts_at DATETIME NOT NULL,
+ ends_at DATETIME NOT NULL,
+ reason VARCHAR(255) NOT NULL,
+ FOREIGN KEY (room_id) REFERENCES rooms(id),
+ INDEX (room_id,starts_at,ends_at),
+ CHECK (ends_at > starts_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS services (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ name VARCHAR(100) NOT NULL,
+ price INT UNSIGNED NOT NULL,
+ active BOOLEAN NOT NULL DEFAULT TRUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS settings (
+ id INT PRIMARY KEY,
+ earn_per INT UNSIGNED NOT NULL DEFAULT 10000,
+ point_value INT UNSIGNED NOT NULL DEFAULT 1000,
+ CHECK (earn_per > 0 AND point_value > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS bookings (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ user_id BIGINT UNSIGNED NOT NULL,
+ room_id BIGINT UNSIGNED NOT NULL,
+ starts_at DATETIME NOT NULL,
+ ends_at DATETIME NOT NULL,
+ status ENUM('pending','confirmed','checked_in','completed','cancelled') NOT NULL DEFAULT 'pending',
+ hourly_rate INT UNSIGNED NOT NULL,
+ room_amount INT UNSIGNED NOT NULL,
+ service_amount INT UNSIGNED NOT NULL DEFAULT 0,
+ redeemed_points INT UNSIGNED NOT NULL DEFAULT 0,
+ discount_amount INT UNSIGNED NOT NULL DEFAULT 0,
+ earn_per INT UNSIGNED NOT NULL,
+ earned_points INT UNSIGNED NOT NULL DEFAULT 0,
+ checked_in_at DATETIME NULL,
+ checked_out_at DATETIME NULL,
+ note VARCHAR(500) NOT NULL DEFAULT '',
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY (user_id) REFERENCES users(id),
+ FOREIGN KEY (room_id) REFERENCES rooms(id),
+ INDEX room_schedule (room_id,starts_at,ends_at,status),
+ INDEX (user_id,created_at),
+ CHECK (ends_at > starts_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS booking_services (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ booking_id BIGINT UNSIGNED NOT NULL,
+ service_id BIGINT UNSIGNED NOT NULL,
+ name VARCHAR(100) NOT NULL,
+ unit_price INT UNSIGNED NOT NULL,
+ quantity INT UNSIGNED NOT NULL,
+ status ENUM('ordered','served','cancelled') NOT NULL DEFAULT 'ordered',
+ FOREIGN KEY (booking_id) REFERENCES bookings(id),
+ FOREIGN KEY (service_id) REFERENCES services(id),
+ CHECK (quantity > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS payments (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ booking_id BIGINT UNSIGNED NOT NULL,
+ recorded_by BIGINT UNSIGNED NOT NULL,
+ type ENUM('deposit','settlement','refund') NOT NULL,
+ method ENUM('cash','transfer','demo') NOT NULL,
+ amount INT UNSIGNED NOT NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY (booking_id) REFERENCES bookings(id),
+ FOREIGN KEY (recorded_by) REFERENCES users(id),
+ INDEX (created_at),
+ CHECK (amount > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS point_ledger (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ user_id BIGINT UNSIGNED NOT NULL,
+ booking_id BIGINT UNSIGNED NOT NULL,
+ kind ENUM('redeem','restore','earn') NOT NULL,
+ delta INT NOT NULL,
+ balance_after INT UNSIGNED NOT NULL,
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ FOREIGN KEY (user_id) REFERENCES users(id),
+ FOREIGN KEY (booking_id) REFERENCES bookings(id),
+ UNIQUE (booking_id,kind)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS login_attempts (
+ identity_hash CHAR(64) PRIMARY KEY,
+ failures INT UNSIGNED NOT NULL DEFAULT 0,
+ window_start DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

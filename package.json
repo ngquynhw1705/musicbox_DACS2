@@ -1,0 +1,7 @@
+{
+  "name": "musicbox-dacs2",
+  "private": true,
+  "description": "Browser checks only; application runtime is PHP and MySQL",
+  "scripts": { "test:browser": "node tests/browser.cjs" },
+  "devDependencies": { "playwright": "1.58.2" }
+}
